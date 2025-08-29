@@ -11,15 +11,58 @@ async def synthesize_stream(
     voice: str,
     audio_format: Optional[str] = None,
 ) -> AsyncGenerator[bytes, None]:
-    """Yield audio bytes using edge-tts streaming API."""
+    """Yield audio bytes using edge-tts streaming API.
+
+    edge-tts has had API differences across versions regarding how to specify
+    the desired audio format. Some versions accept `output_format` on
+    `Communicate.stream()`, others accept it (or `format`) on the constructor,
+    and older ones don't support overriding format at all.
+
+    To be robust, we attempt a few strategies and gracefully fall back to the
+    library defaults if the current version doesn't support our requested
+    format, avoiding hard failures like "unexpected keyword argument".
+    """
+
     communicator = edge_tts.Communicate(text, voice=voice)
 
-    stream_kwargs = {}
-    if audio_format:
-        # edge-tts expects output_format on stream(), not on constructor
-        stream_kwargs["output_format"] = audio_format
+    # Try multiple ways to provide the format, catching TypeError for
+    # unsupported keyword arguments across versions.
+    async def _get_stream_gen():
+        if not audio_format:
+            return communicator.stream()
 
-    async for chunk in communicator.stream(**stream_kwargs):
+        # 1) Preferred on newer releases: pass on stream()
+        try:
+            return communicator.stream(output_format=audio_format)
+        except TypeError:
+            pass
+
+        # 2) Some releases used `format` kw on stream()
+        try:
+            return communicator.stream(format=audio_format)  # type: ignore[arg-type]
+        except TypeError:
+            pass
+
+        # 3) Try on constructor with `output_format`
+        try:
+            comm2 = edge_tts.Communicate(text, voice=voice, output_format=audio_format)
+            return comm2.stream()
+        except TypeError:
+            pass
+
+        # 4) Try on constructor with `format`
+        try:
+            comm3 = edge_tts.Communicate(text, voice=voice, format=audio_format)  # type: ignore[arg-type]
+            return comm3.stream()
+        except TypeError:
+            pass
+
+        # 5) Final fallback: use defaults
+        return communicator.stream()
+
+    gen = await _get_stream_gen()
+
+    async for chunk in gen:
         if chunk["type"] == "audio":
             yield chunk["data"]
         elif chunk["type"] == "sentence_boundary":
