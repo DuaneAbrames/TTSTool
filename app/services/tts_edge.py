@@ -12,12 +12,14 @@ async def synthesize_stream(
     audio_format: Optional[str] = None,
 ) -> AsyncGenerator[bytes, None]:
     """Yield audio bytes using edge-tts streaming API."""
-    kwargs = {"voice": voice}
-    if audio_format:
-        kwargs["output_format"] = audio_format
-    communicator = edge_tts.Communicate(text, **kwargs)
+    communicator = edge_tts.Communicate(text, voice=voice)
 
-    async for chunk in communicator.stream():
+    stream_kwargs = {}
+    if audio_format:
+        # edge-tts expects output_format on stream(), not on constructor
+        stream_kwargs["output_format"] = audio_format
+
+    async for chunk in communicator.stream(**stream_kwargs):
         if chunk["type"] == "audio":
             yield chunk["data"]
         elif chunk["type"] == "sentence_boundary":
@@ -38,4 +40,3 @@ def guess_mime_from_format(audio_format: str | None) -> str:
     if "webm" in fmt:
         return "audio/webm"
     return "application/octet-stream"
-

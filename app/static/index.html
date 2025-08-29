@@ -110,15 +110,20 @@
           const res = await fetch(url, { method: "POST", body: form });
           const t1 = performance.now();
           if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            status.textContent = `Error (${Math.round(t1-t0)} ms): ${err.detail || res.statusText}`;
+            let msg = res.statusText;
+            try {
+              const text = await res.text();
+              try { const j = JSON.parse(text); msg = j.detail || text; }
+              catch { msg = text || res.statusText; }
+            } catch(_) { /* ignore */ }
+            status.textContent = `Error (${Math.round(t1-t0)} ms): ${msg}`;
             return;
           }
           const data = await res.json();
           $("text").value = data.text || "";
           status.textContent = `Done in ${Math.round(t1 - t0)} ms (provider: ${data.provider})`;
         } catch (e) {
-          status.textContent = "Network error";
+          status.textContent = `Network error: ${e?.message || e}`;
         }
       }
 
