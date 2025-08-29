@@ -44,12 +44,39 @@
     <div class="card">
       <h2>Text → Speech (TTS)</h2>
       <div class="row">
-        <label for="ttsVoice">Voice (optional)</label>
-        <input id="ttsVoice" type="text" placeholder="e.g., en-US-AriaNeural (default if blank)" />
+        <label for="ttsVoice">Voice (en-US only)</label>
+        <select id="ttsVoice">
+          <option value="">Use server default voice</option>
+          <option value="en-US-AriaNeural">en-US-AriaNeural (Aria)</option>
+          <option value="en-US-JennyNeural">en-US-JennyNeural (Jenny)</option>
+          <option value="en-US-GuyNeural">en-US-GuyNeural (Guy)</option>
+          <option value="en-US-DavisNeural">en-US-DavisNeural (Davis)</option>
+          <option value="en-US-MichelleNeural">en-US-MichelleNeural (Michelle)</option>
+          <option value="en-US-ChristopherNeural">en-US-ChristopherNeural (Christopher)</option>
+          <option value="en-US-EmmaNeural">en-US-EmmaNeural (Emma)</option>
+          <option value="en-US-EricNeural">en-US-EricNeural (Eric)</option>
+          <option value="en-US-SaraNeural">en-US-SaraNeural (Sara)</option>
+          <option value="en-US-TonyNeural">en-US-TonyNeural (Tony)</option>
+          <option value="en-US-AndrewNeural">en-US-AndrewNeural (Andrew)</option>
+          <option value="en-US-AvaNeural">en-US-AvaNeural (Ava)</option>
+          <option value="en-US-BrianNeural">en-US-BrianNeural (Brian)</option>
+          <option value="en-US-JaneNeural">en-US-JaneNeural (Jane)</option>
+          <option value="en-US-RogerNeural">en-US-RogerNeural (Roger)</option>
+          <option value="en-US-SteffanNeural">en-US-SteffanNeural (Steffan)</option>
+        </select>
       </div>
       <div class="row">
-        <label for="ttsFormat">Audio format (optional)</label>
-        <input id="ttsFormat" type="text" placeholder="e.g., audio-24khz-48kbitrate-mono-mp3" />
+        <label for="ttsFormat">Audio format</label>
+        <select id="ttsFormat">
+          <option value="">Use server default format</option>
+          <option value="audio-24khz-48kbitrate-mono-mp3">MP3 24kHz 48kbps mono</option>
+          <option value="audio-16khz-32kbitrate-mono-mp3">MP3 16kHz 32kbps mono</option>
+          <option value="audio-48khz-96kbitrate-mono-mp3">MP3 48kHz 96kbps mono</option>
+          <option value="riff-24khz-16bit-mono-pcm">WAV 24kHz 16-bit mono PCM</option>
+          <option value="riff-16khz-16bit-mono-pcm">WAV 16kHz 16-bit mono PCM</option>
+          <option value="ogg-24khz-16bit-mono-opus">OGG 24kHz 16-bit mono Opus</option>
+          <option value="webm-24khz-16bit-mono-opus">WEBM 24kHz 16-bit mono Opus</option>
+        </select>
       </div>
       <div class="controls">
         <button id="btnTTS">Synthesize</button>
@@ -139,4 +166,3 @@
     </script>
   </body>
   </html>
-
