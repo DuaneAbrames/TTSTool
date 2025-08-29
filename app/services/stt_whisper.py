@@ -21,8 +21,15 @@ class WhisperSTT(STTEngine):
 
         def _run_blocking() -> str:
             model = whisper.load_model(self.model_name, device=self.device)
-            result = model.transcribe(file_path)
+            try:
+                result = model.transcribe(file_path)
+            except FileNotFoundError as exc:
+                # Most common cause: ffmpeg not installed / not in PATH
+                raise STTError(
+                    "Whisper requires ffmpeg. Install it and ensure it's in PATH (e.g., 'choco install ffmpeg')."
+                ) from exc
+            except Exception as exc:
+                raise STTError(f"Whisper transcription failed: {exc}") from exc
             return (result or {}).get("text", "").strip()
 
         return await asyncio.to_thread(_run_blocking)
-
