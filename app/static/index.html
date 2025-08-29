@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TTSTool UI</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; }
+      .row { margin-bottom: 1rem; }
+      label { display: block; font-weight: 600; margin-bottom: 0.25rem; }
+      textarea { width: 100%; height: 160px; }
+      input[type="text"], select { width: 100%; }
+      .controls { display: flex; gap: .5rem; flex-wrap: wrap; }
+      .card { border: 1px solid #ddd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; }
+      .muted { color: #666; font-size: 0.9rem; }
+      .status { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9rem; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>TTSTool</h1>
+
+    <div class="card">
+      <h2>Speech → Text (STT)</h2>
+      <div class="row">
+        <label for="sttFile">Upload audio (.wav, .mp3, etc.)</label>
+        <input id="sttFile" type="file" accept="audio/*" />
+      </div>
+      <div class="controls">
+        <select id="sttProvider">
+          <option value="">Use default provider</option>
+          <option value="azure">azure</option>
+          <option value="whisper">whisper</option>
+        </select>
+        <button id="btnSTT">Transcribe</button>
+        <span id="sttStatus" class="muted"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Text</h2>
+      <textarea id="text"></textarea>
+    </div>
+
+    <div class="card">
+      <h2>Text → Speech (TTS)</h2>
+      <div class="row">
+        <label for="ttsVoice">Voice (optional)</label>
+        <input id="ttsVoice" type="text" placeholder="e.g., en-US-AriaNeural (default if blank)" />
+      </div>
+      <div class="row">
+        <label for="ttsFormat">Audio format (optional)</label>
+        <input id="ttsFormat" type="text" placeholder="e.g., audio-24khz-48kbitrate-mono-mp3" />
+      </div>
+      <div class="controls">
+        <button id="btnTTS">Synthesize</button>
+        <span id="ttsStatus" class="muted"></span>
+      </div>
+      <div class="row">
+        <audio id="player" controls></audio>
+        <div><a id="download" href="#" download="tts-output">Download audio</a></div>
+      </div>
+    </div>
+
+    <p class="muted">View processing stats on the <a href="/status" target="_blank">Status page</a>.</p>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      async function doSTT() {
+        const fileInput = $("sttFile");
+        const provider = $("sttProvider").value;
+        const status = $("sttStatus");
+        status.textContent = "Uploading…";
+        if (!fileInput.files || !fileInput.files[0]) {
+          status.textContent = "Please select an audio file.";
+          return;
+        }
+        const form = new FormData();
+        form.append("file", fileInput.files[0]);
+        const url = provider ? `/stt?provider=${encodeURIComponent(provider)}` : "/stt";
+        const t0 = performance.now();
+        try {
+          const res = await fetch(url, { method: "POST", body: form });
+          const t1 = performance.now();
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            status.textContent = `Error (${Math.round(t1-t0)} ms): ${err.detail || res.statusText}`;
+            return;
+          }
+          const data = await res.json();
+          $("text").value = data.text || "";
+          status.textContent = `Done in ${Math.round(t1 - t0)} ms (provider: ${data.provider})`;
+        } catch (e) {
+          status.textContent = "Network error";
+        }
+      }
+
+      async function doTTS() {
+        const text = $("text").value.trim();
+        const voice = $("ttsVoice").value.trim();
+        const audio_format = $("ttsFormat").value.trim();
+        const status = $("ttsStatus");
+        if (!text) {
+          status.textContent = "Please enter some text.";
+          return;
+        }
+        status.textContent = "Synthesizing…";
+        const t0 = performance.now();
+        try {
+          const res = await fetch("/tts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text, voice: voice || undefined, audio_format: audio_format || undefined })
+          });
+          const blob = await res.blob();
+          const t1 = performance.now();
+          if (!res.ok) {
+            status.textContent = `Error (${Math.round(t1 - t0)} ms)`;
+            return;
+          }
+          const url = URL.createObjectURL(blob);
+          const player = $("player");
+          player.src = url;
+          player.play().catch(()=>{});
+          const dl = $("download");
+          let ext = "mp3";
+          const ct = res.headers.get("Content-Type") || "";
+          if (ct.includes("wav")) ext = "wav"; else if (ct.includes("ogg")) ext = "ogg"; else if (ct.includes("webm")) ext = "webm";
+          dl.href = url;
+          dl.download = `tts-output.${ext}`;
+          status.textContent = `Done in ${Math.round(t1 - t0)} ms`;
+        } catch (e) {
+          status.textContent = "Network error";
+        }
+      }
+
+      $("btnSTT").addEventListener("click", doSTT);
+      $("btnTTS").addEventListener("click", doTTS);
+    </script>
+  </body>
+  </html>
+

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TTSTool Status</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+      th { background: #f7f7f7; }
+      .muted { color: #666; }
+      .ok { color: #0a0; }
+      .fail { color: #a00; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 1rem; margin-bottom: 1rem; }
+      .card { border: 1px solid #ddd; padding: 1rem; border-radius: 8px; }
+      h1 { margin-top: 0; }
+    </style>
+  </head>
+  <body>
+    <h1>Status</h1>
+    <p class="muted">Auto-refreshes every 2 seconds. Recent activity limited to last 50 entries.</p>
+    <div class="grid" id="summary"></div>
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Op</th>
+          <th>Duration (ms)</th>
+          <th>OK</th>
+          <th>Meta</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <script>
+      function esc(s){return (s+"").replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+      function renderSummary(sum){
+        const container = document.getElementById('summary');
+        container.innerHTML = '';
+        const ops = Object.keys(sum);
+        for (const op of ops) {
+          const s = sum[op];
+          container.innerHTML += `<div class="card"><strong>${op.toUpperCase()}</strong><br/>`+
+            `Count: ${s.count} (ok: ${s.ok})<br/>`+
+            `Avg: ${s.avg_ms ? s.avg_ms.toFixed(1) : '-'} ms<br/>`+
+            `p95: ${s.p95_ms ? s.p95_ms.toFixed(1) : '-'} ms</div>`;
+        }
+      }
+      function renderRows(items){
+        const tbody = document.getElementById('tbody');
+        tbody.innerHTML = '';
+        for (const it of items) {
+          const d = new Date(it.at*1000);
+          const ok = it.ok;
+          const meta = Object.entries(it.meta||{}).map(([k,v])=>`${k}=${esc(v)}`).join(' ');
+          tbody.innerHTML += `<tr>`+
+            `<td>${d.toLocaleTimeString()}</td>`+
+            `<td>${esc(it.op)}</td>`+
+            `<td>${it.ms.toFixed(1)}</td>`+
+            `<td class="${ok?'ok':'fail'}">${ok?'yes':'no'}</td>`+
+            `<td class="muted">${meta}</td>`+
+          `</tr>`;
+        }
+      }
+      async function tick(){
+        try{
+          const res = await fetch('/metrics');
+          const data = await res.json();
+          renderSummary(data.summary || {});
+          renderRows(data.recent || []);
+        }catch(e){/* ignore */}
+      }
+      tick();
+      setInterval(tick, 2000);
+    </script>
+  </body>
+  </html>
+
